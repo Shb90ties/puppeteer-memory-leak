@@ -52,10 +52,27 @@ const freeze = function (miliseconds) {
             };
         });
 
+
+        const hasMemoryLeak = function(sampleNodes) {
+            let risesCount = 0;
+            for (let i=1; i<sampleNodes.length; i++) {
+                let wasRised = true;
+                for (let j=(i-1); j>=0; j--) {
+                    if (sampleNodes[j] >= sampleNodes[i]) {
+                        wasRised = false; break;
+                    }
+                }
+                if (wasRised) {
+                    risesCount++;
+                }
+            }
+            return (risesCount/sampleNodes > 0.4);
+        };
+
         /** Run through the pages in the checkAddress */
         const getNodeSamples = async function(page) {
             let NodeSamples = [];
-            let times = 30;
+            let times = 5;
             // reset former counters
             await page.evaluate(() => {
                 window.puppeteerTools.count = 0;
@@ -64,8 +81,7 @@ const freeze = function (miliseconds) {
             for (let i = 0; i < times; i++) {
                 await page._client.send(`HeapProfiler.collectGarbage`);
                 let startMetrics = await page.metrics();
-                console.log('startMetrics: ', startMetrics.Nodes);
-
+                NodeSamples.push(startMetrics.Nodes);
 
                 await page.evaluate(() => {
                     window.vue.$router.push(window.puppeteerTools.checkAddress[window.puppeteerTools.count % window.puppeteerTools.checkAddress.length]);
@@ -73,9 +89,12 @@ const freeze = function (miliseconds) {
                 });
                 await freeze(2000);
             }
+            return NodeSamples;
         };
 
-        await getNodeSamples(page);
+        let samples = await getNodeSamples(page);
+        let hasLeak = hasMemoryLeak(samples);
+        console.log('?? > ??? ', hasLeak);
 
         // browser.close();
 
