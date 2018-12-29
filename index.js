@@ -38,20 +38,57 @@ const freeze = function (miliseconds) {
         // setup methods in browser
         await page.evaluate(() => {
             window.puppeteerTools = {
-                getComponent(compName) {
-
+                /** @return 'page-link' for '<PageLink>' */
+                getComponentDashedName(compName) {
+                    let output = '';
+                    if (typeof compName === 'string') {
+                        output = compName.replace(/<|>|-/g, '');
+                        output = output.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+                    }
+                    return output;
                 },
-                getPageComponent() {
-
+                /** @return '<PageLink>' for 'page-link' */
+                getComponentHtmlName(compName) {
+                    let output = '';
+                    if (typeof compName === 'string') {
+                        output = output.replace(/-([a-z])/g, function (g) { return g[1].toUpperCase(); });
+                        output = output.charAt(0).toUpperCase() + output.slice(1);
+                        output = `<${output}>`;
+                    }
+                    return output;
                 },
-                getComponentChildrens(compName) {
-
+                getComponent(compName, comp) {
+                    if (compName === comp._name) {
+                        return comp;
+                    } else if (comp.$children && comp.$children.length) {
+                        for (let child of comp.$children) {
+                            let resComp = window.puppeteerTools.getComponent(compName, child);
+                            if (resComp) {
+                                return resComp;
+                            }
+                        }
+                    }
+                    return null;
+                },
+                getPageComponentsStr() {
+                    let output = [];
+                    let mainComp =  window.puppeteerTools.getComponent('<Nuxt>', vue);
+                    if (mainComp && mainComp.$children && mainComp.$children[0]) {
+                        let page = mainComp.$children[0];
+                        let childComps = (page.$children && page.$children.length) ? page.$children : [];
+                        for (let child of childComps) {
+                            let name = window.puppeteerTools.getComponentDashedName(child._name);
+                            if (name) {
+                                output.push(name);
+                            }
+                        }
+                    }
+                    return output.join(',');
                 },
                 checkAddress: ['/test', '/'],
                 count: 0
             };
         });
-
 
         const hasMemoryLeak = function(sampleNodes) {
             let risesCount = 0;
@@ -66,13 +103,13 @@ const freeze = function (miliseconds) {
                     risesCount++;
                 }
             }
-            return (risesCount/sampleNodes > 0.4);
+            return (risesCount/sampleNodes.length > 0.4);
         };
 
         /** Run through the pages in the checkAddress */
         const getNodeSamples = async function(page) {
             let NodeSamples = [];
-            let times = 5;
+            let times = 20;
             // reset former counters
             await page.evaluate(() => {
                 window.puppeteerTools.count = 0;
@@ -87,14 +124,17 @@ const freeze = function (miliseconds) {
                     window.vue.$router.push(window.puppeteerTools.checkAddress[window.puppeteerTools.count % window.puppeteerTools.checkAddress.length]);
                     window.puppeteerTools.count++;
                 });
-                await freeze(2000);
+                await freeze(1000);
             }
             return NodeSamples;
         };
 
         let samples = await getNodeSamples(page);
         let hasLeak = hasMemoryLeak(samples);
-        console.log('?? > ??? ', hasLeak);
+
+        if (hasLeak) {
+            
+        }
 
         // browser.close();
 
