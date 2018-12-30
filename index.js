@@ -65,7 +65,7 @@ const freeze = function (miliseconds) {
                             let component = compName === 'nuxt' ? mainComp.$children[0] : mainComp;
                             let childComps = (component.$children && component.$children.length) ? component.$children : [];
                             for (let child of childComps) {
-                                let name = window.puppeteerTools.getComponentDashedName(child._name);
+                                let name = (child.$options._componentTag) ? child.$options._componentTag : window.puppeteerTools.getComponentDashedName(child._name);
                                 if (name) {
                                     output.push(name);
                                 }
