@@ -106,6 +106,23 @@ const freeze = function (miliseconds) {
 
         let page = await getNewPage('http://localhost:3000/', '.center');
 
+
+        // Create a Map object
+        await page.evaluate(() => window.map = new window.myVue());
+        // Get a handle to the Map object prototype
+        const mapPrototype = await page.evaluateHandle(() => window.myVue.prototype);
+        // Query all map instances into an array
+        const mapInstances = await page.queryObjects(mapPrototype);
+        console.log('mapInstances: ', mapInstances);
+        // Count amount of map objects in heap
+        const count = await page.evaluate(maps => maps.length, mapInstances);
+        console.log('count: ', count);
+        await mapInstances.dispose();
+        await mapPrototype.dispose();
+
+
+        return;
+
         const hasMemoryLeak = function(sampleNodes) {
             let risesCount = 0;
             for (let i=1; i<sampleNodes.length; i++) {
